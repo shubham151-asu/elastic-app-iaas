@@ -1,1 +1,1 @@
-# elastic-app-iaas
+# elastic-app-iaaS
