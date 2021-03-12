@@ -1,0 +1,14 @@
+#!/bin/bash
+
+echo export SQS_REQUEST_QUEUE_URL=$SQS_REQUEST_QUEUE_URL >> /etc/profile
+echo export SQS_RESPONSE_QUEUE_URL=$SQS_RESPONSE_QUEUE_URL >> /etc/profile
+echo export S3_INPUT_BUCKET_NAME=$S3_INPUT_BUCKET_NAME >> /etc/profile
+echo export S3_OUTPUT_BUCKET_NAME=$S3_OUTPUT_BUCKET_NAME >> /etc/profile
+
+export SQS_REQUEST_QUEUE_URL=$SQS_REQUEST_QUEUE_URL
+export SQS_RESPONSE_QUEUE_URL=$SQS_RESPONSE_QUEUE_URL
+export S3_INPUT_BUCKET_NAME=$S3_INPUT_BUCKET_NAME
+export S3_OUTPUT_BUCKET_NAME=$S3_OUTPUT_BUCKET_NAME
+
+cd /home/ubuntu/classifier
+python3 app.py
