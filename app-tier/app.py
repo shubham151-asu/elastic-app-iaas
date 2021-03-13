@@ -62,9 +62,9 @@ class AppTier(object):
         logger.debug("S3downloadFile: S3 input file download fileName - {0} , destination - {1} ".format(fileName,dest))
         try:
             response = self.s3Connection.meta.client.download_file(S3_INPUT_BUCKET, fileName, dest)
-
+            return True
         except ClientError as e:
-            logger.error("S3downloadFile : unable to downloadfile - error - {0)".format(e))
+            logger.error("S3downloadFile : unable to downloadfile - error - {0}".format(e))
             return False
         else:
             return dest
@@ -86,8 +86,9 @@ class AppTier(object):
         try:
             response = self.s3Connection.meta.client.upload_file(dest, S3_OUTPUT_BUCKET, fileName)
             logger.debug("s3uploadFile : S3 file upload successful - fileName - {0}".format(fileName))
+            return True
         except ClientError as e:
-            logger.error("s3uploadFile : unable to upload file - error - {0)".format(e))
+            logger.error("s3uploadFile : unable to upload file - error - {0}".format(e))
             return False
         return True
 
@@ -97,9 +98,10 @@ class AppTier(object):
         try:
             message.delete()
             logger.debug("Deleted message: {0}".format(message.message_id))
+            return True
         except ClientError as error:
-            logger.error("delete_message : Couldn't delete message: %s", message.message_id)
-            raise error
+            logger.error("delete_message : Couldn't delete message: {0}".format(message.message_id))
+            return False
 
     def runAppLibraryCode(self,fileName):
         logger.debug("In method : runAppLibraryCode")
@@ -110,7 +112,8 @@ class AppTier(object):
         (output, err) = process.communicate()
         exit_code = process.wait()
         if not err:
-            response = output.decode("utf-8")
+            response = output.decode("utf-8").rstrip("\n")
+
             logger.debug("runAppLibraryCode : Success - Output of Library Code - {0}".format(response))
             return response
         else:
@@ -153,43 +156,44 @@ class AppTier(object):
                 logger.info("execute : inputFileName - {0}, obtained from SQS queue - {1}".format(infileName,REQUEST_QUEUE_URL))
 
                 logger.info("execute : step3 - download file from S3")
-                self.s3downloadFile(infileName)
+                status = self.s3downloadFile(infileName)
+                if status:
+                    logger.info("execute : step4 - run classification task")
+                    output = self.runAppLibraryCode(infileName)
 
-                logger.info("execute : step4 - run classification task")
-                output = self.runAppLibraryCode(infileName)
+                    if output:
+                        outputString = self.formatOutput(infileName,output)
 
-                if output:
-                    outputString = self.formatOutput(infileName,output)
+                        outfileName = infileName[:-4] +"_out"
+                        logger.info("execute : outfileName - {0}".format(outfileName))
 
-                    outfileName = infileName[:-4] +"_out"
-                    logger.info("execute : outfileName - {0}".format(outfileName))
+                        logger.info("execute : step5 - store output data to locally")
 
-                    logger.info("execute : step5 - store output data to locally")
-                    self.createFile(outputString,outfileName)
+                        self.createFile(outputString,outfileName)
 
-                    logger.info("execute : step6 - upload output file to S3")
-                    self.s3uploadFile(outfileName)
+                        logger.info("execute : step6 - upload output file to S3")
+                        self.s3uploadFile(outfileName)
 
 
-                    logger.info("execute : step7 - change read permission of S3")
-                    self.changePermission(outfileName)
+                        logger.info("execute : step7 - change read permission of S3")
+                        self.changePermission(outfileName)
 
-                    messageString = infileName+ ":"+ outfileName
+                        messageString = infileName+ ":"+ outfileName
 
-                    logger.info("execute : output message for SQS queue - {0}".format(messageString))
+                        logger.info("execute : output message for SQS queue - {0}".format(messageString))
 
-                    outmessage = self.packMessage(messageString)
+                        outmessage = self.packMessage(messageString)
 
-                    logger.info("execute : step8 - send message to response queue")
-                    self.sendMessage([outmessage])
+                        logger.info("execute : step8 - send message to response queue")
+                        self.sendMessage([outmessage])
 
-                    logger.info("execute : step9 - safely remove from request queue ")
-                    self.delete_message(message)
+                        logger.info("execute : step9 - safely remove from request queue ")
+                        self.delete_message(message)
 
-                    logger.info("execute : step10 - clean data")
-                    self.cleanUp(infileName,outfileName)
+                        logger.info("execute : step10 - clean data")
+                        self.cleanUp(infileName,outfileName)
 
-                    time.sleep(random.choice(RANDOM_SLEEP_TIME))
+                        time.sleep(random.choice(RANDOM_SLEEP_TIME))
 
 
     def receiveMessage(self):
