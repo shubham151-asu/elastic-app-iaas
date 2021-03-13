@@ -39,6 +39,7 @@ import software.amazon.awssdk.services.ec2.model.*;
 
 
 public class App {
+    // Setting all the constants required for the program
     final static Region REGION = Region.US_EAST_2;
     final static String APPROXIMATE_NUMBER_OF_MESSAGES_QUEUE_PROPERTY = "ApproximateNumberOfMessages";
     final static String REQUEST_QUEUE_URL = System.getenv("SQS_REQUEST_QUEUE_URL");
@@ -70,6 +71,7 @@ public class App {
         SqsClient sqsClient = SqsClient.builder().region(REGION).build();
         Ec2Client ec2Client = Ec2Client.builder().region(REGION).build();
 
+        // Creating an instance of the velocity template engine
         VelocityEngine ve = new VelocityEngine();
         ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath"); 
         ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
@@ -84,14 +86,16 @@ public class App {
         System.out.println("Exiting...");
     }
 
+    // Launch the autoscaling controller
     public static void launchController(Ec2Client ec2Client, SqsClient sqsClient, VelocityEngine ve, String requestQueueUrl) throws IOException, InterruptedException {
-
+        // Creating an instance of GetQueueAttributesRequest
         GetQueueAttributesRequest getQueueAttributesRequest = GetQueueAttributesRequest.builder()
             .attributeNamesWithStrings(QUEUE_ATTRIBUTE_LIST)
             .queueUrl(requestQueueUrl)
             .build();
 
         while(true) {
+            // Execute the logic every two seconds
             Thread.sleep(2000);
             System.out.println("========================================");
             GetQueueAttributesResponse getQueueAttributesResponse = sqsClient.getQueueAttributes(getQueueAttributesRequest);
@@ -104,14 +108,19 @@ public class App {
                     System.exit(1);
                 }
             }
+            // Add the queu lenght to the sum
             MOVING_AVERAGE_SUM += Integer.parseInt(map.get(APPROXIMATE_NUMBER_OF_MESSAGES_QUEUE_PROPERTY));
             count++;
+            // If the count has not reached 3, restart the loop
             if(count < NUM_POINTS_IN_MOVING_AVERAGE) {
                 continue;
             }
+            // At this point, 6 seconds have passed and the controller needs to made a scaling decision
             int requestQueueLength = MOVING_AVERAGE_SUM/NUM_POINTS_IN_MOVING_AVERAGE;
+            // count and sum is reset to 0 again
             count = 0;
             MOVING_AVERAGE_SUM = 0;
+            // Retrieve all the EC2 instances and sort them
             List<String[]> appInstanceIds = getRunningEc2InstanceIds(ec2Client);
             Collections.sort(appInstanceIds, new Comparator<String[]>(){
                 @Override
@@ -119,15 +128,20 @@ public class App {
                     return a[1].compareTo(b[1]);
                 }
             });
+            // Current number of running application tier instances
             int curNumsInstances = appInstanceIds.size();
+            // Desirable number of runnign instances based on the accepatble backlog per instance
+            // Minimum number of instances is always 1 and maximum number of instances is capped at 19
             int desirableNumInstances = Math.max(1, Math.min(requestQueueLength/ACCEPTABLE_BACKLOG_PER_INSTANCE, MAXIMUM_NUM_APP_TIER_INSTANCES));
             System.out.println("Current number of instances :" + curNumsInstances);
             System.out.println("Desirable number of instances :" + desirableNumInstances);
+            // Make the decision to scale the application up or down
             autoScale(ec2Client, ve, desirableNumInstances, curNumsInstances, appInstanceIds);
             System.out.println();
         }
     }
 
+    // Retrieves all the running EC2 instances. The first value in the String array is the instance ID and the second value is the instance name
     public static List<String[]> getRunningEc2InstanceIds(Ec2Client ec2Client) {
         Filter runningFilter = Filter.builder().name("instance-state-name").values("running", "pending").build();
         Filter nameFilter = Filter.builder().name("tag:Name").values("app-tier*").build();
@@ -143,6 +157,7 @@ public class App {
         return appInstanceIds;
     }
 
+    // Scales the application up or down based on the desirable number of instances and the current number of instances
     public static void autoScale(Ec2Client ec2Client, VelocityEngine ve, int desirableNumInstances, int curNumsInstances, List<String[]> appInstanceIds) throws IOException, InterruptedException {
         if(desirableNumInstances > curNumsInstances) {
             System.out.println("Scaling out by " + Integer.toString(desirableNumInstances - curNumsInstances) + " instances...");
@@ -153,6 +168,7 @@ public class App {
         }
     }
 
+    // Scales out by the specified number of instances
     public static void scaleOut(Ec2Client ec2Client, VelocityEngine ve, int numInstances, List<String[]> appInstanceIds) throws IOException, InterruptedException {
         int curLength = appInstanceIds.size();
         for(int i=1; i<=numInstances; i++) {
@@ -163,6 +179,7 @@ public class App {
         Thread.sleep(5000);
     }
 
+    // Scales in by the specified number of instances
     public static void scaleIn(Ec2Client ec2Client, VelocityEngine ve, int numInstances, List<String[]> appInstanceIds) {
         List<String> instancesToDelete = new ArrayList<String>();
         for(int i=0, j=appInstanceIds.size()-1; i<numInstances; i++, j--) {
@@ -171,12 +188,14 @@ public class App {
         deleteEc2Instances(ec2Client, instancesToDelete);
     }
 
+    // Reads the web-tier.sh template, replaces all the required values, base64 encodes the script
     public static String readUserDataFile(VelocityEngine ve, String filePath, String inputBucketName, String outputBucketName,
     String requestQueueUrl, String responseQueueUrl) throws IOException {
         return Base64.getEncoder().encodeToString(replaceValuesInTemplate(ve, filePath,
             inputBucketName, outputBucketName, requestQueueUrl, responseQueueUrl).getBytes());
     }
 
+    // Sets the environment variables in the web-tier.sh template
     public static String replaceValuesInTemplate(VelocityEngine ve, String filePath, String inputBucketName, String outputBucketName,
     String requestQueueUrl, String responseQueueUrl) throws IOException {
         Template t = ve.getTemplate(filePath);
@@ -191,6 +210,7 @@ public class App {
         return writer.toString();
     }
 
+    // Created EC2 instance with specified AMI id, name, userdata and IAM role
     public static String createEc2Instance(Ec2Client ec2Client, String amiId, String name, String userData, String iamRole) {
         RunInstancesRequest runRequest = RunInstancesRequest.builder()
             .imageId(amiId)
@@ -227,6 +247,7 @@ public class App {
         return "";
     }
 
+    // Deletes the specified EC2 instances
     public static void deleteEc2Instances(Ec2Client ec2Client, List<String> appTierInstanceIds) {
         TerminateInstancesRequest terminateInstancesRequest = TerminateInstancesRequest.builder()
         .instanceIds(appTierInstanceIds)
