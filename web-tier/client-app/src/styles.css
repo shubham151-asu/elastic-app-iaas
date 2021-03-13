@@ -1,0 +1,10 @@
+/* You can add global styles to this file, and also import other style files */
+@import '@angular/material/prebuilt-themes/deeppurple-amber.css';
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; background-color: #F0F0F0; }
+
+.mat-cell {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}

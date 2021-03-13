@@ -1,0 +1,30 @@
+.top-container {
+  margin-top: 15px;
+  margin-bottom: 15px;
+  width: 75%;
+  margin-left: 20px;
+}
+
+.upload-card {
+  margin-top: 15px;
+  padding-left: 20px;
+}
+
+.card-heading {
+  font-weight: 500;
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.mat-column-picture {
+  width: 30%;
+}
+
+.mat-column-result {
+  width: calc(70%-100px);
+
+}
+
+.mat-column-index {
+  width: 100px;
+}

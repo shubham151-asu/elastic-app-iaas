@@ -1,0 +1,52 @@
+<div class="top-container">
+  <mat-card class="upload-card mat-elevation-z3">
+    <div class="card-heading">
+      File Upload
+    </div>
+    <!-- File upload component -->
+    <div class="form-group">
+      <input type="file" id="file" multiple (change)="handleFileInput($event.target.files)">
+    </div>
+    <br>
+    <!-- File upload button -->
+    <button mat-raised-button color="primary" (click)="uploadFile()"
+      [disabled]="!filesToUpload || filesToUpload.length == 0">Upload</button>
+  </mat-card>
+
+  <mat-card class="upload-card mat-elevation-z3">
+    <div class="card-heading">
+      Classification Results
+      <button mat-icon-button color="primary" style="float: right; margin-top: -15px;" (click)="rePoll()">
+        <mat-icon>autorenew</mat-icon>
+      </button>
+    </div>
+
+    <!-- SHOWS THE COUNT OF THE TOTAL NUMBER OF RESULTS-->
+    <div style="margin-bottom: 10px;">
+      Total Results: {{dataSource.data.length}}
+    </div>
+
+    <!-- RESULT TABLE SECTION -->
+    <table mat-table [dataSource]="dataSource" class="mat-elevation-z2" style="width:80%">
+      <!-- Index -->
+      <ng-container matColumnDef="index">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> S No. </th>
+        <td mat-cell *matCellDef="let element; let i = index">{{i + 1}}</td>
+      </ng-container>
+      <!-- Image Column -->
+      <ng-container matColumnDef="picture">
+        <th mat-header-cell *matHeaderCellDef> Image </th>
+        <td mat-cell *matCellDef="let element"> <img src={{element.picture}} style="height:50px;width:50px;" /></td>
+      </ng-container>
+
+      <!-- Result Column -->
+      <ng-container matColumnDef="result">
+        <th mat-header-cell *matHeaderCellDef> Result </th>
+        <td mat-cell *matCellDef="let element"> {{element.result}} </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </mat-card>
+</div>

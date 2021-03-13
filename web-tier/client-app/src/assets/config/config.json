@@ -1,0 +1,10 @@
+{
+  "resQueueURL": "https://sqs.us-east-2.amazonaws.com/551466843935/autoscaler-response-queue",
+  "reqQueueURL": "https://sqs.us-east-2.amazonaws.com/551466843935/autoscaler-request-queue",
+  "nodeBaseURL": "http://18.217.124.114:3000/",
+  "outputS3Url": "https://autoscaler-image-bucket-output.s3.amazonaws.com/",
+  "inputS3Url": "https://autoscaler-image-bucket-input.s3.amazonaws.com/",
+  "getEndpoint": "fetch",
+  "uploadEndpoint": "upload",
+  "deleteEndpoint": "delete"
+}
